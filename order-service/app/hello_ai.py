@@ -1,21 +1,23 @@
 from openai import OpenAI
 from app import settings
 
-client : OpenAI = OpenAI(api_key=str(settings.OPENAI_API_KEY))
+# Initialize the OpenAI client with the API key
+client = OpenAI(api_key=str(settings.OPENAI_API_KEY))
 
-def chat_completion(prompt : str )-> str:
-    
- response = client.chat.completions.create(
+def chat_completion(prompt: str) -> str:
+    # Call the OpenAI API with the GPT-4 model
+    response = client.chat.completions.create(
+        model="gpt-4",  # Specify the GPT-4 model
         messages=[
             {
                 "role": "user",
                 "content": prompt,
             }
         ],
-        model="gpt-3.5-turbo-1106",
     )
-# print(response)
-#  print(response.choices[0].message.content)
- return response.choices[0].message.content
+    
+    # Return the response content from the first choice
+    return response.choices[0].message['content']
+
 
 

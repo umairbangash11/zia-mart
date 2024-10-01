@@ -7,19 +7,19 @@ from typing import AsyncGenerator
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import asyncio
 import json
-
 from app import settings
 from app.db_engine import engine
-from app.models.inventory_model import (InventoryItem, InventoryItemUpdate, InventoryItemId,
-InventoryItemDelete,InventoryItemResponse)
+from app.models.inventory_model import (InventoryItem, InventoryItemUpdate)
 from app.crud.inventory_crud import (add_new_inventory_item, 
 delete_inventory_item_by_id,
 get_all_inventory_items, 
 get_inventory_item_by_id,
-update_inventory_item_by_id)
+update_inventory_item_by_id,
+validate_inventory_item_id)
 from app.deps import get_session, get_kafka_producer
 from app.consumers.add_stock_consumer import consume_messages
-
+from app.consumers.inventory_con import consume_invent_messages
+# from app.hello_ai import chat_completion
 
 def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
@@ -31,11 +31,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     print("Creating tabl...")
 
     task = asyncio.create_task(consume_messages(
-        "inventory-add-stock-response", 'broker:19092'))
+        "inventory-updates", 'broker:19092'))
+
     create_db_and_tables()
     print("\n\n LIFESPAN created!! \n\n")
     yield
 
+    asyncio.create_task(consume_invent_messages(
+        "order-events",
+        #settings.KAFKA_INVENTORY_TOPIC,
+        'broker:19092'
+        
+    ))
 
 app = FastAPI(
     lifespan=lifespan,
@@ -58,18 +65,18 @@ async def create_new_inventory_item(item: InventoryItem, session: Annotated[Sess
     print("item_JSON:", item_json)
     # Produce message
     #await producer.send_and_wait("AddStock", item_json)
-    await producer.send_and_wait(settings.KAFKA_INVENTORY_TOPIC, item_json)
+    await producer.send_and_wait("inventory-updates",item_json)
     #new_item = add_new_inventory_item(item, session)
     return item
 
 
-@app.get("/manage-inventory/all", response_model=list[InventoryItemResponse])
+@app.get("/manage-inventory/all", response_model=list[InventoryItem])
 def all_inventory_items(session: Annotated[Session, Depends(get_session)]):
     """ Get all inventory items from the database"""
     return get_all_inventory_items(session)
 
 
-@app.get("/manage-inventory/{item_id}", response_model=InventoryItemId)
+@app.get("/manage-inventory/{item_id}", response_model=InventoryItem)
 def single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_session)]):
     """ Get a single inventory item by ID"""
     try:
@@ -79,7 +86,7 @@ def single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.delete("/manage-inventory/{item_id}", response_model=InventoryItemDelete)
+@app.delete("/manage-inventory/{item_id}", response_model=InventoryItem)
 async def delete_single_inventory_item(
     item_id: int,
     session: Annotated[Session, Depends(get_session)],
@@ -146,3 +153,15 @@ async def update_single_product(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/validate-inventory/{inventory_item_id}", response_model=InventoryItem)
+async def validate_inventory_item(inventory_item_id: int, session: Session = Depends(get_session)):
+    inventory_item = validate_inventory_item_id(inventory_item_id, session)
+
+    if inventory_item is None:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    return inventory_item
+
+@app.get("/hello-ai")
+def get_ai_response(prompt:str):
+    return chat_completion(prompt)

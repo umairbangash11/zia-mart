@@ -19,7 +19,7 @@ async def consume_messages(topic, bootstrap_servers):
     try:
         # Continuously listen for messages.
         async for message in consumer:
-            print("RAW")
+            print("RAW!!!")
             print(f"Received message on topic {message.topic}")
 
             product_data = json.loads(message.value.decode())

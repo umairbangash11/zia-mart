@@ -1,49 +1,28 @@
-
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field
+from typing import Optional
 from datetime import datetime
-from typing import List, Optional
 
-# class OrderItem(SQLModel, table=True):
-#     id: Optional[int] = Field(default=None, primary_key=True)
-#     order_id: Optional[int] = Field(default=None, foreign_key="order.id")
-#     product_id: int
-#     quantity: int
-#     price: float
-   
-
-class Order(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+class OrderBase(SQLModel):
     user_id: int
-    status: str = Field(default="Pending")  # e.g., Pending, Shipped, Delivered, Cancelled
+    product_id: int
+    quantity: int
     total_price: float
+    status: str = "pending"
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    #items: List[OrderItem] = Relationship(back_populates="order")
+class Order(OrderBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
 
-# OrderItem.order = Relationship(back_populates="items")
 
-#Create OrderUpdata class
+class OrderResponse(OrderBase):
+    id: int
+
 class OrderUpdate(SQLModel):
-    status: str | None
-    total_price: float | None
-    created_at: datetime | None
-    updated_at: datetime | None
+    user_id: int | None = None
+    product_id:int | None = None
+    quantity:int | None = None
+    total_price:float | None = None
+    status:str | None = None
 
-#create get all OrderResponse class
-class OrderResponse(SQLModel):
+class OrderDelete(SQLModel):
     id: int
-    user_id: int
-    status: str
-    total_price: float
-    created_at: datetime
-    updated_at: datetime
-
-#OrderResponse By Id
-class OrderResponseId(SQLModel):
-    id: int
-   
-#Create OrderDelete 
-class OrderItemDelete(SQLModel):
-    id: int
-    

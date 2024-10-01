@@ -1,28 +1,32 @@
-#user_model.py
 from sqlmodel import SQLModel, Field
 from typing import Optional
 
 class User(SQLModel, table=True):
-    __tablename__ = "users"
+    
+
+    
     id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True, nullable=False)
+    email: str = Field(index=True, unique=True, nullable=False)
+    hashed_password: str
+    is_active: bool = Field(default=True)
+
+class UserRead(SQLModel):
+    id: int
     username: str
-    email: str 
-    password: str 
+    email: str
+    is_active: bool
 
 class UserCreate(SQLModel):
     username: str
     email: str
     password: str
 
-class UserRead(SQLModel):
+class UserResponseWithToken(SQLModel):
     id: int
     username: str
     email: str
-
-class UserUpdate(SQLModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
-    password: Optional[str] = None
-
-
+    is_active: bool
+    access_token: str
+    token_type: str
 

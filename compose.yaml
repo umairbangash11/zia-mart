@@ -44,7 +44,7 @@ services:
     image: inventory-mart-api
     build:
       context: ./inventory-service
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     volumes:
       - ./inventory-service:/code # Sync local development directory with the container
     depends_on:
@@ -78,6 +78,32 @@ services:
       - postgres_user_db
     ports:
       - "8008:8000" # Expose container port 8000 to host port 8000
+
+  notification-service:
+    image: notification-mart-api
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    volumes:
+      - ./notification-service:/code # Sync local development directory with the container
+    depends_on:
+      - broker
+      - postgres_notification_db
+    ports:
+      - "8009:8000" # Expose container port 8000 to host port 8000
+
+  payment-service:
+    image: payment-mart-api
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    volumes:
+      - ./payment-service:/code # Sync local development directory with the container
+    depends_on:
+      - broker
+      - postgres_payment_db
+    ports:
+      - "8010:8000" # Expose container port 8000 to host port 8000
 
   postgres_db:
     image: postgres:latest # Use the official PostgreSQL image
@@ -146,6 +172,32 @@ services:
     volumes:
       - postgres_user_db:/var/lib/postgresql/data
 
+  postgres_notification_db:
+    image: postgres:latest # Use the official PostgreSQL image
+    restart: always
+    container_name: PostgresNotificationCont
+    environment:
+      - POSTGRES_USER=ziakhan
+      - POSTGRES_PASSWORD=my_password
+      - POSTGRES_DB=mydatabase
+    ports:
+      - "5485:5432"
+    volumes:
+      - postgres_notification_db:/var/lib/postgresql/data
+
+  postgres_payment_db:
+    image: postgres:latest # Use the official PostgreSQL image
+    restart: always
+    container_name: PostgresPaymentCont
+    environment:
+      - POSTGRES_USER=ziakhan
+      - POSTGRES_PASSWORD=my_password
+      - POSTGRES_DB=mydatabase
+    ports:
+      - "5486:5432"
+    volumes:
+      - postgres_payment_db:/var/lib/postgresql/data
+
 
   broker:
     image: apache/kafka:3.7.0
@@ -168,6 +220,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
+    restart: unless-stopped
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -192,6 +245,11 @@ volumes:
     driver: local
   postgres_user_db:
     driver: local
+  postgres_notification_db:
+    driver: local
+  postgres_payment_db:
+    driver: local
+
 
 networks:
   default:

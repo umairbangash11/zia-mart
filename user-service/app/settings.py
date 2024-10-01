@@ -3,10 +3,10 @@ from starlette.datastructures import Secret
 from starlette.config import Config
 
 # Load environment variables from a .env file
-config = Config(".env")
+# config = Config(".env")
 
 # Retrieve the SECRET_KEY from the environment variables or the .env file
-SECRET_KEY = config("SECRET_KEY", cast=str, default="A Secure Secret Key")
+# SECRET_KEY = config("SECRET_KEY", cast=str, default="A Secure Secret Key")
 
 try:
     config = Config(".env")

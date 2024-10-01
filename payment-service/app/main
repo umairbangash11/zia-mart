@@ -1,0 +1,20 @@
+    transaction_dict = {
+        "user_id": user_id,
+        "order_id": order_id,
+        "amount": amount,
+        "status": status,
+        "created_at": created_at.isoformat()  # Convert datetime to ISO format string
+    }
+    
+    transaction_json = json.dumps(transaction_dict).encode("utf-8")
+
+    # Produce Kafka message
+    await producer.send_and_wait("transaction-event", transaction_json)
+    
+    return {
+        user_id: user_id,
+        order_id: order_id,
+        amount: amount,
+        status: status,
+        created_at: created_at
+    }

@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from app.models.inventory_model import InventoryItem, InventoryItemUpdate, InventoryItemDelete
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate
 
 # Add a New Inventory Item to the Database
 def add_new_inventory_item(inventory_item_data: InventoryItem, session: Session):
@@ -26,7 +26,7 @@ def get_inventory_item_by_id(inventory_item_id: int, session: Session):
 # Delete Inventory Item by ID
 def delete_inventory_item_by_id(inventory_item_id: int, session: Session):
     # Step 1: Get the Inventory Item by ID
-    inventory_item = session.exec(select(InventoryItemDelete).where(InventoryItem.id == inventory_item_id)).one_or_none()
+    inventory_item = session.exec(select(InventoryItem).where(InventoryItem.id == inventory_item_id)).one_or_none()
     if inventory_item is None:
         raise HTTPException(status_code=404, detail="Inventory Item not found")
     # Step 2: Delete the Inventory Item
@@ -45,4 +45,10 @@ def update_inventory_item_by_id(inventory_item_id: int, to_update_inventory_item
     inventory_item.sqlmodel_update(hero_data)
     session.add(inventory_item)
     session.commit()
+    return inventory_item
+
+def validate_inventory_item_id(inventory_item_id: int, session: Session):
+    inventory_item = session.exec(select(InventoryItem).where(InventoryItem.id == inventory_item_id)).one_or_none()
+    if inventory_item is None:
+        raise HTTPException(status_code=404, detail="Inventory Item not found")
     return inventory_item
