@@ -31,7 +31,7 @@ services:
     image: product-mart-api
     build:
       context: ./product-service
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     volumes:
       - ./product-service:/code # Sync local development directory with the container
     depends_on:
@@ -57,7 +57,7 @@ services:
     image: order-mart-api
     build:
       context: ./order-service
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     volumes:
       - ./order-service:/code # Sync local development directory with the container
     depends_on:
@@ -70,7 +70,7 @@ services:
     image: user-mart-api
     build:
       context: ./user-service
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     volumes:
       - ./user-service:/code # Sync local development directory with the container
     depends_on:
@@ -108,7 +108,7 @@ services:
   postgres_db:
     image: postgres:latest # Use the official PostgreSQL image
     restart: always
-    container_name: Postgres_Con
+    container_name: PostgresCon
     environment:
       - POSTGRES_USER=ziakhan
       - POSTGRES_PASSWORD=my_password
@@ -220,7 +220,6 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
-    restart: unless-stopped
 
   kafka-ui:
     image: provectuslabs/kafka-ui

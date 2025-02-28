@@ -1,6 +1,8 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select
 from app.models.inventory_model import InventoryItem, InventoryItemUpdate
+from app.models.inventory_model import InventoryItem
+from app.db_engine import engine
 
 # Add a New Inventory Item to the Database
 def add_new_inventory_item(inventory_item_data: InventoryItem, session: Session):
@@ -47,8 +49,6 @@ def update_inventory_item_by_id(inventory_item_id: int, to_update_inventory_item
     session.commit()
     return inventory_item
 
-def validate_inventory_item_id(inventory_item_id: int, session: Session):
-    inventory_item = session.exec(select(InventoryItem).where(InventoryItem.id == inventory_item_id)).one_or_none()
-    if inventory_item is None:
-        raise HTTPException(status_code=404, detail="Inventory Item not found")
-    return inventory_item
+
+
+

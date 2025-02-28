@@ -16,8 +16,8 @@ from app.crud.product_crud import (add_new_product,
                                     delete_product_by_id, update_product_by_id,validate_product_by_id)
 from app.deps import get_session, get_kafka_producer
 from app.consumers.product_consumer import consume_messages
-from app.consumers.inventroy_consumer import consume_product_inventory_messages
-from app.consumers.pro_order_consumer import consume_product_order_messages
+#from app.consumers.inventroy_consumer import consume_inventory_messages
+#from app.consumers.pro_order_consumer import consume_product_order_messages
 #from app.hello_ai import chat_completion
 # from app.crud.rating_crud import (
 #     add_new_rating,
@@ -40,8 +40,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     task = asyncio.create_task(consume_messages(
         settings.KAFKA_PRODUCT_TOPIC, 'broker:19092'))
     
-    # asyncio.create_task(consume_product_inventory_messages(
-    #     "inventory-updates",
+    # asyncio.create_task(consume_inventory_messages(
+    #     "AddStock",
     #     #settings.KAFKA_INVENTORY_TOPIC,
     #     'broker:19092'
         
@@ -82,7 +82,7 @@ producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     product_json = json.dumps(product_dict).encode("utf-8")
     print("product_JSON:", product_json)
     # Produce message
-    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
+    await producer.send_and_wait("stock", product_json)
    
     return product
 

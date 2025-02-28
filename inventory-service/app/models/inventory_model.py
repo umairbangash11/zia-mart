@@ -24,3 +24,6 @@ class InventoryItemUpdate(SQLModel):
     product_id: int | None = None
     variant_id: int | None = None
 
+
+
+
