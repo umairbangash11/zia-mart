@@ -38,23 +38,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     print("Creating ... ... ?? !!!! ")
 
     task = asyncio.create_task(consume_messages(
-        settings.KAFKA_PRODUCT_TOPIC, 'broker:19092'))
+        settings.KAFKA_PRODUCT_TOPIC, settings.BOOTSTRAP_SERVER))
     
     # asyncio.create_task(consume_inventory_messages(
-    #     "AddStock",
-    #     #settings.KAFKA_INVENTORY_TOPIC,
-    #     'broker:19092'
-        
+    #     settings.KAFKA_INVENTORY_TOPIC,
+    #     settings.BOOTSTRAP_SERVER
     # ))
 
     # asyncio.create_task(consume_product_order_messages(
     #     "order-events",
-    #     #settings.KAFKA_INVENTORY_TOPIC,
-    #     'broker:19092'
-        
+    #     settings.BOOTSTRAP_SERVER
     # ))
-
-
 
     create_db_and_tables()
     yield
@@ -77,14 +71,16 @@ def read_root():
 async def create_new_product(product: Product, 
 producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     """ Create a new product and send it to Kafka"""
-
-    product_dict = {field: getattr(product, field) for field in product.dict()}
-    product_json = json.dumps(product_dict).encode("utf-8")
-    print("product_JSON:", product_json)
-    # Produce message
-    await producer.send_and_wait("stock", product_json)
-   
-    return product
+    try:
+        product_dict = {field: getattr(product, field) for field in product.dict()}
+        product_json = json.dumps(product_dict).encode("utf-8")
+        print("product_JSON:", product_json)
+        # Produce message
+        await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
+        return product
+    except Exception as e:
+        print(f"Error sending message to Kafka: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send message to Kafka: {str(e)}")
 
 
 @app.get("/manage-products/all", response_model=list[Product])
@@ -107,15 +103,14 @@ def get_single_product(product_id: int, session: Annotated[Session, Depends(get_
 @app.delete("/manage-products/{product_id}", response_model=Product)
 async def delete_single_product(
     product_id: int,
-    #session: Annotated[Session, Depends(get_session)],
+    session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
 ):
     """ Delete a single product by ID and send a message to Kafka"""
 
     try:
         # Delete the product from the database
-        deleted_product = delete_product_by_id(product_id=product_id,)
-                                               #session=session)
+        deleted_product = delete_product_by_id(product_id=product_id, session=session)
         if not deleted_product:
             raise HTTPException(status_code=404, detail="Product not found")
 
@@ -139,7 +134,7 @@ async def delete_single_product(
 async def update_single_product(
     product_id: int,
     product: ProductUpdate,
-    #session: Annotated[Session, Depends(get_session)],
+    session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
 ):
     """ Update a single product by ID and send a message to Kafka"""
@@ -148,7 +143,7 @@ async def update_single_product(
         updated_product = update_product_by_id(
             product_id=product_id, 
             to_update_product_data=product, 
-            #session=session
+            session=session
         )
         if not updated_product:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -162,7 +157,7 @@ async def update_single_product(
         await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
 
         # Return the updated product
-        return product
+        return updated_product
 
     except HTTPException as e:
         raise e

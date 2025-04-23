@@ -15,7 +15,7 @@ import asyncio
 from app import settings
 from app.consumers.user_consumer import consume_messages
 #from app.consumers.send_not_consumer import consume_user_notification_messages
-from app.consumers.payment_consumer import consume_user_payment_messages
+# from app.consumers.payment_consumer import consume_user_payment_messages
 #from app.consumers.add_order_consumer import consume_user_order_messages
 
 from typing import Annotated, List
@@ -44,12 +44,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         
     # ))
 
-    asyncio.create_task(consume_user_payment_messages(
-        "transaction-event",
-        #settings.KAFKA_INVENTORY_TOPIC,
-        'broker:19092'
+    # asyncio.create_task(consume_user_payment_messages(
+    #     "transaction-event",
+    #     #settings.KAFKA_INVENTORY_TOPIC,
+    #     'broker:19092'
         
-    ))
+    # ))
 
     # asyncio.create_task(consume_user_order_messages(
     #     "order-events",
@@ -89,8 +89,8 @@ async def signup(
     await producer.send_and_wait("user_events", user_json)
     return user
 
-@app.post("/login", response_model=UserResponseWithToken)
-async def login(
+@app.post("/token", response_model=UserResponseWithToken)
+async def token(
     form_data: OAuth2PasswordRequestForm = Depends(), 
     session: Session = Depends(get_session), 
     producer: AIOKafkaProducer = Depends(get_kafka_producer)
@@ -117,6 +117,7 @@ async def login(
         access_token=access_token,
         token_type="bearer"
     )
+
 
 @app.get("/users/me", response_model=UserRead)
 async def read_users_me(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):

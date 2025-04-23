@@ -17,7 +17,7 @@ get_inventory_item_by_id,
 update_inventory_item_by_id)
 from app.deps import get_session, get_kafka_producer
 from app.consumers.add_stock_consumer import consume_messages
-from app.consumers.product_consumer import consume_product_messages
+
 
 # from app.hello_ai import chat_completion
 
@@ -36,10 +36,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     task = asyncio.create_task(consume_messages(
         settings.KAFKA_INVENTORY_TOPIC, 'broker:19092'))
     
-    asyncio.create_task(consume_product_messages(
-        "stock",
-        'broker:19092'
-    ))
+    # asyncio.create_task(consume_product_messages(
+    #     "stock",
+    #     'broker:19092'
+    # ))
 
     create_db_and_tables()
     print("\n\n LIFESPAN created!! \n\n")

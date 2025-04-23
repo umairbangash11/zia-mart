@@ -15,17 +15,6 @@ services:
     ports:
       - "8000:8000" # Expose container port 8000 to host port 8000
 
-  api2:
-    image: ms2-mart-api
-    build:
-      context: ./microservice_02
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./microservice_02:/code # Sync local development directory with the container
-    depends_on:
-      - broker
-    ports:
-      - "8002:8000" # Expose container port 8000 to host port 8000
 
   product-service:
     image: product-mart-api
@@ -130,6 +119,7 @@ services:
       - "5481:5432"
     volumes:
       - postgres_product_db:/var/lib/postgresql/data
+
 
   postgres_inventory_db:
     image: postgres:latest # Use the official PostgreSQL image

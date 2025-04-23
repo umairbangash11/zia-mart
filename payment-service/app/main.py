@@ -20,7 +20,7 @@ validate_transaction_by_id)
 from app.deps import get_session, get_kafka_producer
 from app.consumers.transaction_consumer import consume_messages
 # app.consumers.send_not_consumer import consume_notification_messages
-#from app.consumers.add_order_consumer import consume_order_messages
+# from app.consumers.add_order_consumer import consume_order_messages
 
 
 def create_db_and_tables() -> None:

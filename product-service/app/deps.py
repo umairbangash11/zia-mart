@@ -1,10 +1,11 @@
 from aiokafka import AIOKafkaProducer
 from sqlmodel import Session
 from app.db_engine import engine
+from app import settings
 
 # Kafka Producer as a dependency
 async def get_kafka_producer():
-    producer = AIOKafkaProducer(bootstrap_servers='broker:19092')
+    producer = AIOKafkaProducer(bootstrap_servers=settings.BOOTSTRAP_SERVER)
     await producer.start()
     try:
         yield producer

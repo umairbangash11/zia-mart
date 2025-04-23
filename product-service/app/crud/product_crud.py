@@ -39,11 +39,15 @@ def update_product_by_id(product_id: int, to_update_product_data:ProductUpdate, 
     product = session.exec(select(Product).where(Product.id == product_id)).one_or_none()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
+    
     # Step 2: Update the Product
-    hero_data = to_update_product_data.model_dump(exclude_unset=True)
-    product.sqlmodel_update(hero_data)
+    product_data = to_update_product_data.model_dump(exclude_unset=True)
+    for key, value in product_data.items():
+        setattr(product, key, value)
+    
     session.add(product)
     session.commit()
+    session.refresh(product)
     return product
 
 # Validate Product by ID
