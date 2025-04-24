@@ -7,7 +7,7 @@ __pycache__/
 database.db
 # C extensions
 *.so
-
+.env
 # Distribution / packaging
 .Python
 develop-eggs/
