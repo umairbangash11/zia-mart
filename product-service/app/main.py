@@ -7,6 +7,7 @@ from typing import AsyncGenerator
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import asyncio
 import json
+import logging
 
 from app import settings
 from app.db_engine import engine
@@ -27,36 +28,68 @@ from app.consumers.product_consumer import consume_messages
 #     update_rating_by_id
 # )
 # from app.consumers.product_rating_consumer import consume_rating_messages
-from app.hello_ai import chat_completion
+# from app.hello_ai import chat_completion
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
 
+# Store the consumer task globally
+consumer_task = None
 
-# The first part of the function, before the yield, will
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    print("Creating ... ... ?? !!!! ")
-
-    task = asyncio.create_task(consume_messages(
-        settings.KAFKA_PRODUCT_TOPIC, settings.BOOTSTRAP_SERVER))
+    global consumer_task
     
-    # asyncio.create_task(consume_inventory_messages(
-    #     settings.KAFKA_INVENTORY_TOPIC,
-    #     settings.BOOTSTRAP_SERVER
-    # ))
-
-    # asyncio.create_task(consume_product_order_messages(
-    #     "order-events",
-    #     settings.BOOTSTRAP_SERVER
-    # ))
-
-    create_db_and_tables()
-    yield
+    try:
+        # First create the database tables
+        logger.info("Creating database tables...")
+        create_db_and_tables()
+        
+        # Then start the consumer
+        logger.info("Starting Kafka consumer...")
+        consumer_task = asyncio.create_task(consume_messages(
+            settings.KAFKA_PRODUCT_TOPIC, 
+            settings.BOOTSTRAP_SERVER
+        ))
+        
+        # Add error handling for the consumer task
+        def handle_consumer_error(task):
+            try:
+                task.result()
+            except Exception as e:
+                logger.error(f"Consumer task failed: {str(e)}")
+                # Restart the consumer
+                global consumer_task
+                consumer_task = asyncio.create_task(consume_messages(
+                    settings.KAFKA_PRODUCT_TOPIC, 
+                    settings.BOOTSTRAP_SERVER
+                ))
+                consumer_task.add_done_callback(handle_consumer_error)
+        
+        consumer_task.add_done_callback(handle_consumer_error)
+        
+        yield
+        
+    except Exception as e:
+        logger.error(f"Error in lifespan: {str(e)}")
+        raise
+    finally:
+        # Clean up the consumer task
+        if consumer_task:
+            consumer_task.cancel()
+            try:
+                await consumer_task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Hello World API with DB",
+    title="Product Service API",
     version="0.0.1",
 )
 
@@ -69,29 +102,33 @@ def read_root():
 
 @app.post("/manage-products/", response_model=Product)
 async def create_new_product(product: Product, 
-producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
-    """ Create a new product and send it to Kafka"""
+    producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+    """Create a new product and send it to Kafka"""
     try:
-        product_dict = {field: getattr(product, field) for field in product.dict()}
-        product_json = json.dumps(product_dict).encode("utf-8")
-        print("product_JSON:", product_json)
-        # Produce message
-        await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
+        # Convert product to dict and add action
+        product_dict = product.model_dump()
+        product_dict["action"] = "create"
+        
+        # Send to Kafka
+        await producer.send_and_wait(
+            settings.KAFKA_PRODUCT_TOPIC, 
+            json.dumps(product_dict).encode()
+        )
         return product
     except Exception as e:
-        print(f"Error sending message to Kafka: {str(e)}")
+        logger.error(f"Error sending message to Kafka: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to send message to Kafka: {str(e)}")
 
 
 @app.get("/manage-products/all", response_model=list[Product])
 def call_all_products(session: Annotated[Session, Depends(get_session)]):
-    """ Get all products from the database"""
+    """Get all products from the database"""
     return get_all_products(session)
 
 
 @app.get("/manage-products/{product_id}", response_model=Product)
 def get_single_product(product_id: int, session: Annotated[Session, Depends(get_session)]):
-    """ Get a single product by ID"""
+    """Get a single product by ID"""
 
     try:
         return get_product_by_id(product_id=product_id, session=session)
@@ -106,7 +143,7 @@ async def delete_single_product(
     session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
 ):
-    """ Delete a single product by ID and send a message to Kafka"""
+    """Delete a single product by ID and send a message to Kafka"""
 
     try:
         # Delete the product from the database
@@ -114,15 +151,16 @@ async def delete_single_product(
         if not deleted_product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        # Prepare the Kafka message
-        product_dict = {"product_id": product_id, "action": "delete"}
-        product_json = json.dumps(product_dict).encode("utf-8")
-        print("product_JSON:", product_json)
-
-        # Produce message to Kafka
-        await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
-
-        # Return a success response
+        # Send delete message to Kafka
+        delete_message = {
+            "id": product_id,
+            "action": "delete"
+        }
+        await producer.send_and_wait(
+            settings.KAFKA_PRODUCT_TOPIC, 
+            json.dumps(delete_message).encode()
+        )
+        
         return {"message": "Product deleted successfully", "product_id": product_id}
 
     except HTTPException as e:
@@ -137,7 +175,7 @@ async def update_single_product(
     session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
 ):
-    """ Update a single product by ID and send a message to Kafka"""
+    """Update a single product by ID and send a message to Kafka"""
     try:
         # Update the product in the database
         updated_product = update_product_by_id(
@@ -148,15 +186,17 @@ async def update_single_product(
         if not updated_product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        # Prepare the Kafka message
-        product_dict = {"product_id": product_id, "action": "update", "updated_data": product.dict()}
-        product_json = json.dumps(product_dict).encode("utf-8")
-        print("product_JSON:", product_json)
-
-        # Produce message to Kafka
-        await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
-
-        # Return the updated product
+        # Convert to dict and add action
+        update_dict = product.model_dump(exclude_unset=True)
+        update_dict["id"] = product_id
+        update_dict["action"] = "update"
+        
+        # Send to Kafka
+        await producer.send_and_wait(
+            settings.KAFKA_PRODUCT_TOPIC, 
+            json.dumps(update_dict).encode()
+        )
+        
         return updated_product
 
     except HTTPException as e:
@@ -174,6 +214,6 @@ async def validate_product(product_id: int, session: Session = Depends(get_sessi
     return product
 
 
-@app.get("/hello-ai")
-def get_ai_response(prompt:str):
-    return chat_completion(prompt)
+# @app.get("/hello-ai")
+# def get_ai_response(prompt:str):
+#     return chat_completion(prompt)

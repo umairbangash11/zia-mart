@@ -16,17 +16,19 @@ class Todo(SQLModel, table=True):
     content: str = Field(index=True)
 
 
-# only needed for psycopg 3 - replace postgresql
-# with postgresql+psycopg in settings.DATABASE_URL
-connection_string = str(settings.DATABASE_URL).replace(
-    "postgresql", "postgresql+psycopg"
-)
+# Get the database URL from settings and ensure it's properly formatted
+database_url = str(settings.DATABASE_URL)
+if database_url.startswith('DATABASE_URL='):
+    database_url = database_url.replace('DATABASE_URL=', '')
 
+# Replace postgresql with postgresql+psycopg for psycopg 3
+connection_string = database_url.replace("postgresql", "postgresql+psycopg")
 
-# recycle connections after 5 minutes
-# to correspond with the compute scale down
+# Create engine with connection pooling
 engine = create_engine(
-    connection_string, connect_args={}, pool_recycle=300
+    connection_string,
+    connect_args={},
+    pool_recycle=300  # recycle connections after 5 minutes
 )
 
 # engine = create_engine(
@@ -115,23 +117,16 @@ async def get_kafka_producer():
 
 @app.post("/todos/", response_model=Todo)
 async def create_todo(todo: Todo, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]) -> Todo:
-    # todo_dict = {field: getattr(todo, field) for field in todo.dict()}
-    # todo_json = json.dumps(todo_dict).encode("utf-8")
-    # print("todoJSON:", todo_json)
-    # Produce message
-    # await producer.send_and_wait("todos", todo_json)
-
     todo_protbuf = todo_pb2.Todo(id=todo.id, content=todo.content)
     print(f"Todo Protobuf: {todo_protbuf}")
-    # Serialize the message to a byte string
     serialized_todo = todo_protbuf.SerializeToString()
     print(f"Serialized data: {serialized_todo}")
-    # Produce message
     await producer.send_and_wait("todos2", serialized_todo)
 
-    # session.add(todo)
-    # session.commit()
-    # session.refresh(todo)
+    # Save to database
+    session.add(todo)
+    session.commit()
+    session.refresh(todo)
     return todo
 
 

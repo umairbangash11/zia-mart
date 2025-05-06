@@ -4,11 +4,29 @@ from app.models.product_model import Product, ProductUpdate
 
 # Add a New Product to the Database
 def add_new_product(product_data: Product, session: Session):
-    print("Adding Product to Database")
-    session.add(product_data)
-    session.commit()
-    session.refresh(product_data)
-    return product_data
+    """Add a new product to the database"""
+    try:
+        # Create a new Product instance
+        new_product = Product(
+            id=product_data.id,
+            name=product_data.name,
+            description=product_data.description,
+            price=product_data.price,
+            expiry=product_data.expiry,
+            brand=product_data.brand,
+            weight=product_data.weight,
+            category=product_data.category,
+            sku=product_data.sku
+        )
+        print(f"Adding new product to DB: {new_product}")
+        session.add(new_product)
+        session.commit()
+        session.refresh(new_product)
+        return new_product
+    except Exception as e:
+        print(f"Error adding product to database: {str(e)}")
+        session.rollback()
+        raise
 
 # Get All Products from the Database
 def get_all_products(session: Session):

@@ -30,7 +30,7 @@ def update_notification(notification_id: int, notification_data: NotificationUpd
     notification.updated_at = datetime.utcnow()  # Update the timestamp
     session.add(notification)
     session.commit()
-    session.refresh(notification)
+    session.refresh(notification) 
     return notification
 
 # Delete a Notification by ID

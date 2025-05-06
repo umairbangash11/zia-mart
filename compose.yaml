@@ -9,6 +9,11 @@ services:
     restart: always # Any Issue when RUnning Contianer = ShutDown
     volumes:
       - ./todo:/code # Sync local development directory with the container
+    environment:
+      - DATABASE_URL=postgresql://ziakhan:my_password@postgres_db:5432/mydatabase
+      - BOOTSTRAP_SERVER=broker:19092
+      - KAFKA_ORDER_TOPIC=todos2
+      - KAFKA_CONSUMER_GROUP_ID_FOR_PRODUCT=my-group
     depends_on:
       - postgres_db
       - broker
